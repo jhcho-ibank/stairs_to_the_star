@@ -1018,21 +1018,33 @@
   }
 
   // 동료 최고 기록 깃발: 그 계단 위에 프로필 사진 + 이름 + 점수
+  var FLAG_R = 19;   // 프로필 사진 반지름
   function drawGhostFlag(pl, i, slot){
-    var gx = W / 2 + (xs[i] - camX) + (slot % 2 === 0 ? 1 : -1) * Math.ceil(slot / 2) * 30;
+    var r = FLAG_R;
+    // 같은 계단에 여러 명이면 좌우로 벌린다 — 사진 지름보다 넓게
+    var gx = W / 2 + (xs[i] - camX) + (slot % 2 === 0 ? 1 : -1) * Math.ceil(slot / 2) * (r * 2 + 8);
     var gyTop = baseY + (-i * SY - camY) - SY * 0.28;
-    var poleH = SY * 1.9 + (slot % 3) * 7;
+    var poleH = SY * 1.5 + (slot % 3) * 8;
     var topY2 = gyTop - poleH;
     ctx.strokeStyle = pl.self ? 'rgba(255,212,94,.95)' : 'rgba(245,237,216,.5)';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(gx, gyTop); ctx.lineTo(gx, topY2); ctx.stroke();
     ctx.fillStyle = pl.self ? '#ffd45e' : '#ff8e5e';
     ctx.beginPath();
     ctx.moveTo(gx + 1, topY2);
-    ctx.lineTo(gx + 15, topY2 + 4.5);
-    ctx.lineTo(gx + 1, topY2 + 9);
+    ctx.lineTo(gx + 19, topY2 + 5.5);
+    ctx.lineTo(gx + 1, topY2 + 11);
     ctx.closePath(); ctx.fill();
-    var r = 12, cy3 = topY2 - r - 2;
+
+    var cy3 = topY2 - r - 3;
+    // 사진이 밤하늘에 묻히지 않도록 뒤에 살짝 그림자
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.45)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = 'rgba(16,18,43,.9)';
+    ctx.beginPath(); ctx.arc(gx, cy3, r + 1, 0, 6.29); ctx.fill();
+    ctx.restore();
+
     ctx.save();
     ctx.beginPath(); ctx.arc(gx, cy3, r, 0, 6.29); ctx.clip();
     if(pl.img && pl.img.complete && pl.img.naturalWidth > 0){
@@ -1041,21 +1053,22 @@
       ctx.fillStyle = pl.color || '#565b7d';
       ctx.fillRect(gx - r, cy3 - r, r * 2, r * 2);
       ctx.fillStyle = '#fff';
-      ctx.font = '800 12px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      ctx.font = '800 18px -apple-system, "Apple SD Gothic Neo", sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText((pl.name || '?').charAt(0), gx, cy3 + 1);
     }
     ctx.restore();
-    ctx.strokeStyle = pl.self ? '#ffd45e' : 'rgba(245,237,216,.85)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = pl.self ? '#ffd45e' : 'rgba(245,237,216,.9)';
+    ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(gx, cy3, r, 0, 6.29); ctx.stroke();
+
     var label = (pl.self ? '나 ' : '') + String(pl.name || '').slice(0, 8) + ' ' + pl.best;
-    ctx.font = '700 11px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.font = '700 12.5px -apple-system, "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     var tw2 = ctx.measureText(label).width;
-    var lx = gx + r + 5;
-    ctx.fillStyle = 'rgba(16,18,43,.78)';
-    rr(lx - 5, cy3 - 9, tw2 + 11, 18, 8); ctx.fill();
+    var lx = gx + r + 6;
+    ctx.fillStyle = 'rgba(16,18,43,.82)';
+    rr(lx - 6, cy3 - 10, tw2 + 13, 20, 9); ctx.fill();
     ctx.fillStyle = pl.self ? '#ffd45e' : '#f5edd8';
     ctx.fillText(label, lx, cy3 + 0.5);
     ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
@@ -1562,7 +1575,8 @@
   function fetchPhoto(){
     return graphToken()
       .then(function(at){
-        return fetch('https://graph.microsoft.com/v1.0/me/photos/48x48/$value',
+        // 계단 깃발에 크게 그리므로 고해상도 화면에서도 또렷하도록 96px로 받는다
+        return fetch('https://graph.microsoft.com/v1.0/me/photos/96x96/$value',
           { headers: { Authorization: 'Bearer ' + at } });
       })
       .then(function(r){ if(!r.ok) throw new Error('사진 없음'); return r.blob(); })
