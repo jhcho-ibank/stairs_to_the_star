@@ -1332,6 +1332,13 @@
   var inIframe = (function(){ try{ return window.self !== window.top; }catch(e){ return true; } })();
   var players = [];
   var refreshSeq = 0;            // 늦게 도착한 응답이 최신 순위표를 덮어쓰지 않도록
+  var lastRefreshAt = 0;
+  var lastInputAt = Date.now();
+  var elStartOverlay = document.getElementById('start');
+  var elOverOverlay = document.getElementById('over');
+  ['pointerdown', 'keydown'].forEach(function(t){
+    window.addEventListener(t, function(){ lastInputAt = Date.now(); }, true);
+  });
   var imgCache = {};
   var COLORS = ['#e0705a','#5a8fe0','#5ab88a','#b07ad6','#d6a54a','#5abdc4','#d66a9e','#8a94d6'];
 
@@ -1729,6 +1736,7 @@
       return Promise.resolve();
     }
     var seq = ++refreshSeq;
+    lastRefreshAt = Date.now();
     return authedApi('/api/leaderboard').then(function(res){
       if(seq !== refreshSeq) return;   // 늦게 온 응답은 버린다
       players = res.players || [];
@@ -1870,9 +1878,18 @@
     cfg = c;
     initAuth();
     refresh();
+    // 순위표가 실제로 보이는 동안만 자주 갱신한다. 게임 중에는 화면에
+    // 순위표가 없고 깃발·추격 칩은 조금 오래된 값이어도 무방하므로,
+    // 탭을 열어둔 채 방치해도 요청이 계속 쌓이지 않게 한다.
     setInterval(function(){
-      if(document.visibilityState === 'visible') refresh();
-    }, 30000);
+      if(document.visibilityState !== 'visible') return;
+      var showingBoard = !elStartOverlay.classList.contains('hidden')
+        || !elOverOverlay.classList.contains('hidden');
+      // 방치된 탭이 종일 순위표를 긁지 않도록, 최근에 만진 경우에만 자주 갱신
+      var active = Date.now() - lastInputAt < 180000;
+      var age = Date.now() - lastRefreshAt;
+      if(showingBoard && active ? age >= 30000 : age >= 300000) refresh();
+    }, 15000);
   }).catch(function(){ /* 서버 없이 열림(file://) — 소셜 기능 없이 싱글 플레이 */ });
 })();
 </script>
