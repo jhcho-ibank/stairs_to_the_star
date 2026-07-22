@@ -379,10 +379,10 @@
         <span class="ms" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         Microsoft로 로그인
       </button>
-      <p class="loginNote" id="loginNote" hidden>팀즈 계정으로 로그인하면 회사 순위표에 참여합니다</p>
+      <p class="loginNote" id="loginNote" hidden>팀즈 계정으로 로그인하면 아이뱅크 순위표에 참여합니다</p>
     </div>
     <div class="lbBox" id="startLb" hidden>
-      <h3>회사 순위</h3>
+      <h3>아이뱅크 순위</h3>
       <div id="startLbRows"></div>
     </div>
   </div>
@@ -396,7 +396,7 @@
     <p class="best" id="overBest"></p>
     <p class="myRank" id="myRank" hidden></p>
     <div class="lbBox" id="overLb" hidden>
-      <h3>회사 순위</h3>
+      <h3>아이뱅크 순위</h3>
       <div id="overLbRows"></div>
     </div>
     <button id="retry" type="button">다시 오르기</button>
@@ -1842,7 +1842,7 @@
       var em = document.createElement('p');
       em.className = 'lbEmpty';
       em.textContent = me ? '아직 기록이 없습니다 — 첫 주자가 되어보세요!'
-                          : '로그인하면 회사 순위가 표시됩니다';
+                          : '로그인하면 아이뱅크 순위가 표시됩니다';
       container.appendChild(em);
       return;
     }
@@ -1887,7 +1887,7 @@
     if(!next){
       var crown = document.createElement('span');
       crown.className = 'up';
-      crown.textContent = '👑 지금 회사 1위 페이스!';
+      crown.textContent = '👑 지금 아이뱅크 1위 페이스!';
       elTarget.appendChild(crown);
     }else{
       elTarget.appendChild(avatarEl(next));
