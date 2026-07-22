@@ -1506,6 +1506,8 @@
       var hint = null;
       try{ hint = localStorage.getItem(HINT_KEY); }catch(e){}
       if(hint) params.login_hint = hint;
+      // 회사 도메인이 설정되어 있으면 첫 로그인에도 계정 고르는 단계를 건너뛴다
+      else if(cfg.domainHint) params.domain_hint = cfg.domainHint;
       var url = authBase() + '/authorize?' + new URLSearchParams(params);
       if(inIframe){
         // 팀즈 탭 등 iframe 안에서는 로그인 페이지가 프레임을 거부한다 → 팝업
