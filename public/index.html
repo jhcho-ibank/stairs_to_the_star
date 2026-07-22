@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>별까지 계단</title>
+<style>
+  :root{
+    --night:#10122b;
+    --sunset:#ff8e5e;
+    --lamp:#ffd45e;
+    --stone:#a8adc4;
+    --ink:#1c1d36;
+    --paper:#f5edd8;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  /* display를 지정한 클래스가 hidden 속성을 이기지 못하도록 */
+  [hidden]{ display:none !important; }
+  html,body{
+    height:100%;
+    overflow:hidden;
+    background:var(--night);
+    touch-action:none;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+    font-family:-apple-system, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", sans-serif;
+    color:var(--paper);
+  }
+  #game{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  .hud{
+    position:fixed;
+    top:calc(env(safe-area-inset-top, 0px) + 14px);
+    left:0; right:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    pointer-events:none;
+    z-index:5;
+  }
+  .score{
+    font-size:clamp(46px, 12vw, 68px);
+    font-weight:900;
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-0.02em;
+    text-shadow:0 3px 0 rgba(0,0,0,.35), 0 0 24px rgba(255,212,94,.18);
+  }
+  .energy{
+    width:min(180px, 46vw);
+    height:10px;
+    border-radius:999px;
+    background:rgba(255,255,255,.14);
+    overflow:hidden;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.4);
+  }
+  .energy .fill{
+    height:100%;
+    width:100%;
+    border-radius:999px;
+    background:linear-gradient(90deg, var(--sunset), var(--lamp));
+    transform-origin:left center;
+    transform:scaleX(1);
+  }
+  .energy.low .fill{
+    background:linear-gradient(90deg, #e0503c, #ff8e5e);
+    animation:pulse .5s ease-in-out infinite alternate;
+  }
+  @keyframes pulse{ from{opacity:1} to{opacity:.55} }
+  .mute{
+    position:fixed;
+    top:calc(env(safe-area-inset-top, 0px) + 14px);
+    right:14px;
+    pointer-events:auto;
+    font:inherit;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.08em;
+    color:var(--paper);
+    background:rgba(16,18,43,.55);
+    border:1px solid rgba(245,237,216,.3);
+    border-radius:999px;
+    padding:7px 13px;
+    cursor:pointer;
+    z-index:11;
+  }
+  .mute:focus-visible{ outline:2px solid var(--lamp); outline-offset:2px; }
+  .toast{
+    position:fixed;
+    top:26%;
+    left:0; right:0;
+    text-align:center;
+    font-size:clamp(22px, 6vw, 34px);
+    font-weight:900;
+    color:var(--lamp);
+    text-shadow:0 3px 0 rgba(0,0,0,.4), 0 0 30px rgba(255,212,94,.35);
+    letter-spacing:.04em;
+    opacity:0;
+    pointer-events:none;
+    z-index:5;
+  }
+  .toast.show{ animation:toast 1.6s ease-out forwards; }
+  @keyframes toast{
+    0%{ opacity:0; transform:translateY(16px) scale(.9); }
+    12%{ opacity:1; transform:translateY(0) scale(1); }
+    75%{ opacity:1; transform:translateY(-6px); }
+    100%{ opacity:0; transform:translateY(-18px); }
+  }
+  .overlay{
+    position:fixed;
+    inset:0;
+    z-index:10;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(ellipse at center, rgba(10,11,28,.45), rgba(8,9,24,.72));
+    padding:24px;
+  }
+  .overlay.hidden{ display:none; }
+  .panel{ text-align:center; max-width:340px; }
+  .eyebrow{
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:.22em;
+    color:var(--sunset);
+    margin-bottom:14px;
+  }
+  h1{
+    font-size:clamp(58px, 19vw, 96px);
+    font-weight:900;
+    line-height:.98;
+    letter-spacing:-0.03em;
+    color:var(--lamp);
+    text-shadow:0 5px 0 rgba(0,0,0,.3), 0 0 50px rgba(255,142,94,.25);
+    text-wrap:balance;
+    margin-bottom:22px;
+  }
+  .how{
+    font-size:15px;
+    font-weight:600;
+    margin-bottom:8px;
+  }
+  .key{
+    display:inline-block;
+    min-width:30px;
+    padding:3px 8px;
+    margin:0 4px;
+    border:1.5px solid rgba(245,237,216,.5);
+    border-radius:8px;
+    font-weight:900;
+    color:var(--lamp);
+  }
+  .sub{
+    font-size:13px;
+    color:rgba(245,237,216,.65);
+    margin-bottom:26px;
+  }
+  .cta{
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:.1em;
+    color:var(--paper);
+    animation:blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .best{
+    margin-top:14px;
+    font-size:13px;
+    font-weight:600;
+    color:rgba(245,237,216,.6);
+    font-variant-numeric:tabular-nums;
+  }
+  .finalScore{
+    font-size:clamp(68px, 22vw, 110px);
+    font-weight:900;
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-0.02em;
+    text-shadow:0 4px 0 rgba(0,0,0,.35);
+    margin-bottom:10px;
+  }
+  .record{
+    display:inline-block;
+    font-size:13px;
+    font-weight:800;
+    letter-spacing:.1em;
+    color:var(--ink);
+    background:var(--lamp);
+    border-radius:999px;
+    padding:5px 14px;
+    margin-bottom:14px;
+  }
+  .record.hidden{ display:none; }
+  #retry{
+    font:inherit;
+    font-size:17px;
+    font-weight:800;
+    color:var(--ink);
+    background:var(--lamp);
+    border:none;
+    border-radius:999px;
+    padding:14px 38px;
+    margin-top:20px;
+    cursor:pointer;
+    box-shadow:0 5px 0 rgba(0,0,0,.3);
+  }
+  #retry:active{ transform:translateY(2px); box-shadow:0 3px 0 rgba(0,0,0,.3); }
+  #retry:focus-visible{ outline:2px solid var(--paper); outline-offset:3px; }
+  /* ---------- 사내 리더보드 UI ---------- */
+  .profileChip{
+    position:fixed;
+    top:calc(env(safe-area-inset-top, 0px) + 14px);
+    left:14px;
+    z-index:11;
+    display:none;
+    align-items:center;
+    gap:8px;
+    background:rgba(16,18,43,.55);
+    border:1px solid rgba(245,237,216,.3);
+    border-radius:999px;
+    padding:5px 12px 5px 6px;
+    font-size:12px;
+    font-weight:700;
+    color:var(--paper);
+    cursor:pointer;
+  }
+  .profileChip.show{ display:flex; }
+  .profileChip img, .profileChip .ini{
+    width:24px; height:24px;
+    border-radius:50%;
+    display:block;
+    object-fit:cover;
+    background:#565b7d;
+    color:#fff;
+    font-size:12px; font-weight:800;
+    line-height:24px; text-align:center;
+  }
+  .targetChip{
+    display:none;
+    align-items:center;
+    gap:6px;
+    font-size:12.5px;
+    font-weight:700;
+    color:rgba(245,237,216,.92);
+    background:rgba(16,18,43,.5);
+    border-radius:999px;
+    padding:5px 13px;
+    pointer-events:none;
+    font-variant-numeric:tabular-nums;
+  }
+  .targetChip.show{ display:flex; }
+  .targetChip img, .targetChip .ini{
+    width:20px; height:20px;
+    border-radius:50%;
+    object-fit:cover;
+    background:#565b7d;
+    color:#fff; font-size:10px; font-weight:800;
+    line-height:20px; text-align:center;
+  }
+  .targetChip .up{ color:var(--lamp); }
+  .loginBtn{
+    font:inherit;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink);
+    background:#fff;
+    border:none;
+    border-radius:10px;
+    padding:11px 20px;
+    margin-top:18px;
+    cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.28);
+  }
+  .loginBtn:active{ transform:translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,.28); }
+  .loginBtn:focus-visible{ outline:2px solid var(--lamp); outline-offset:2px; }
+  .loginBtn .ms{
+    width:16px; height:16px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1.5px;
+  }
+  .loginBtn .ms i{ display:block; }
+  .loginBtn .ms i:nth-child(1){ background:#f25022; }
+  .loginBtn .ms i:nth-child(2){ background:#7fba00; }
+  .loginBtn .ms i:nth-child(3){ background:#00a4ef; }
+  .loginBtn .ms i:nth-child(4){ background:#ffb900; }
+  .loginNote{
+    font-size:11.5px;
+    color:rgba(245,237,216,.55);
+    margin-top:8px;
+  }
+  .lbBox{
+    margin-top:20px;
+    text-align:left;
+    background:rgba(16,18,43,.55);
+    border:1px solid rgba(245,237,216,.16);
+    border-radius:14px;
+    padding:12px 14px;
+    max-height:200px;
+    overflow-y:auto;
+  }
+  .lbBox h3{
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.14em;
+    color:var(--sunset);
+    margin-bottom:8px;
+  }
+  .lbRow{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:4px 0;
+    font-size:13px;
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  .lbRow .rank{ width:20px; color:rgba(245,237,216,.55); font-weight:800; text-align:right; }
+  .lbRow img, .lbRow .ini{
+    width:26px; height:26px;
+    border-radius:50%;
+    object-fit:cover;
+    background:#565b7d;
+    color:#fff; font-size:12px; font-weight:800;
+    line-height:26px; text-align:center;
+    flex:none;
+  }
+  .lbRow .nm{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbRow .sc{ font-weight:800; color:var(--lamp); }
+  .lbRow.me{ background:rgba(255,212,94,.1); border-radius:8px; padding-left:4px; padding-right:6px; }
+  .lbEmpty{ font-size:12px; color:rgba(245,237,216,.5); }
+  .myRank{
+    margin-top:10px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--paper);
+    font-variant-numeric:tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .cta{ animation:none; }
+    .energy.low .fill{ animation:none; }
+    .toast.show{ animation:toastSimple 1.6s ease-out forwards; }
+    @keyframes toastSimple{ 0%{opacity:0} 12%{opacity:1} 75%{opacity:1} 100%{opacity:0} }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div class="score" id="score">0</div>
+  <div class="energy" id="energyBar"><div class="fill" id="energyFill"></div></div>
+  <div class="targetChip" id="targetChip"></div>
+</div>
+<button class="mute" id="mute" type="button">소리 켬</button>
+<button class="profileChip" id="profileChip" type="button" title="로그아웃"></button>
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="start">
+  <div class="panel">
+    <p class="eyebrow">노을 진 골목 끝, 계단은 하늘로</p>
+    <h1>별까지<br>계단</h1>
+    <p class="how"><span class="key">◀</span> 다음 계단이 있는 쪽을 탭 <span class="key">▶</span></p>
+    <p class="sub">키보드 ← → 도 됩니다 · 헛디디거나 숨이 다하면 추락!</p>
+    <p class="cta">화면을 누르면 시작</p>
+    <p class="best" id="startBest"></p>
+    <div id="loginArea">
+      <button class="loginBtn" id="msLogin" type="button" hidden>
+        <span class="ms" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        Microsoft로 로그인
+      </button>
+      <p class="loginNote" id="loginNote" hidden>팀즈 계정으로 로그인하면 회사 순위표에 참여합니다</p>
+    </div>
+    <div class="lbBox" id="startLb" hidden>
+      <h3>회사 순위</h3>
+      <div id="startLbRows"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="over">
+  <div class="panel">
+    <p class="eyebrow" id="overLabel">여기까지 올랐다</p>
+    <div class="finalScore" id="finalScore">0</div>
+    <div class="record hidden" id="newRecord">새 기록!</div>
+    <p class="best" id="overBest"></p>
+    <p class="myRank" id="myRank" hidden></p>
+    <div class="lbBox" id="overLb" hidden>
+      <h3>회사 순위</h3>
+      <div id="overLbRows"></div>
+    </div>
+    <button id="retry" type="button">다시 오르기</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------- DOM ----------
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var elScore = document.getElementById('score');
+  var elEnergyBar = document.getElementById('energyBar');
+  var elEnergyFill = document.getElementById('energyFill');
+  var elToast = document.getElementById('toast');
+  var elStart = document.getElementById('start');
+  var elOver = document.getElementById('over');
+  var elFinal = document.getElementById('finalScore');
+  var elOverBest = document.getElementById('overBest');
+  var elOverLabel = document.getElementById('overLabel');
+  var elStartBest = document.getElementById('startBest');
+  var elNewRecord = document.getElementById('newRecord');
+  var elRetry = document.getElementById('retry');
+  var elMute = document.getElementById('mute');
+
+  var reduceMotionMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reduceMotion = !!(reduceMotionMq && reduceMotionMq.matches);
+  if(reduceMotionMq){
+    var onMqChange = function(e){ reduceMotion = e.matches; };
+    if(reduceMotionMq.addEventListener) reduceMotionMq.addEventListener('change', onMqChange);
+    else if(reduceMotionMq.addListener) reduceMotionMq.addListener(onMqChange);
+  }
+
+  // ---------- storage ----------
+  function loadBest(){
+    try{ return Math.max(0, parseInt(localStorage.getItem('gyedan-best'), 10) || 0); }
+    catch(e){ return 0; }
+  }
+  function saveBest(v){
+    try{ localStorage.setItem('gyedan-best', String(v)); }catch(e){}
+  }
+  function loadMuted(){
+    try{ return localStorage.getItem('gyedan-mute') === '1'; }catch(e){ return false; }
+  }
+  function saveMuted(m){
+    try{ localStorage.setItem('gyedan-mute', m ? '1' : '0'); }catch(e){}
+  }
+
+  // ---------- audio ----------
+  var AC = null, master = null;
+  var muted = loadMuted();
+  function updateMuteBtn(){
+    elMute.textContent = muted ? '소리 끔' : '소리 켬';
+    elMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+  }
+  updateMuteBtn();
+
+  function audio(){
+    if(!AC){
+      var Ctor = window.AudioContext || window.webkitAudioContext;
+      if(!Ctor) return null;
+      // iOS 17+: play through the ringer/silent switch like a game, not a ringtone
+      try{ if(navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){}
+      AC = new Ctor();
+      master = AC.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(AC.destination);
+    }
+    if(AC.state !== 'running') AC.resume(); // iOS can report 'interrupted', not just 'suspended'
+    return AC;
+  }
+  function tone(freq, dur, type, vol, sweepTo, at){
+    // a non-running context (iOS background) would queue sounds and burst them on resume
+    if(!AC || muted || AC.state !== 'running') return;
+    var t0 = AC.currentTime + (at || 0);
+    var osc = AC.createOscillator();
+    var g = AC.createGain();
+    osc.type = type || 'triangle';
+    osc.frequency.setValueAtTime(freq, t0);
+    if(sweepTo) osc.frequency.exponentialRampToValueAtTime(Math.max(30, sweepTo), t0 + dur);
+    g.gain.setValueAtTime(vol || 0.2, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(master);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+  }
+  function sndStep(n){
+    var f = 420 + (n % 10) * 34;
+    tone(f, 0.055, 'square', 0.10);
+    tone(f * 1.5, 0.05, 'triangle', 0.07);
+  }
+  function sndMilestone(){
+    // both notes on the audio clock — a JS timer here gets throttled in background tabs
+    tone(660, 0.12, 'sine', 0.22);
+    tone(990, 0.2, 'sine', 0.22, 0, 0.09);
+  }
+  function sndFall(){
+    tone(480, 0.4, 'sawtooth', 0.2, 90);
+  }
+  function sndOver(){
+    tone(120, 0.25, 'triangle', 0.25, 60);
+  }
+
+  elMute.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+  elMute.addEventListener('click', function(e){
+    e.stopPropagation();
+    muted = !muted;
+    saveMuted(muted);
+    if(master) master.gain.value = muted ? 0 : 0.5;
+    updateMuteBtn();
+    elMute.blur();
+  });
+
+  // ---------- geometry / layout ----------
+  var W = 0, H = 0, DPR = 1;
+  var SX = 44, SY = 33, BW = 62, BH = 30, LIM = 140, baseY = 0;
+  var vignette = null;
+
+  function resize(){
+    var oldSX = SX, oldSY = SY;
+    W = window.innerWidth; H = window.innerHeight;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var fieldW = Math.min(W, 430);
+    SX = Math.max(32, Math.min(54, fieldW * 0.125));
+    SY = SX * 0.76;
+    BW = SX * 1.45;
+    BH = SY * 0.95;
+    LIM = fieldW / 2 - SX * 1.1;
+    baseY = H * 0.62;
+    // stair world coords are proportional to SX/SY, so camera & cat state
+    // must rescale with them or the whole staircase jumps off-screen
+    if(oldSX && oldSY && (oldSX !== SX || oldSY !== SY)){
+      var rx = SX / oldSX, ry = SY / oldSY;
+      camX *= rx; catRX *= rx; catWX *= rx; fallVX *= rx;
+      camY *= ry; catRY *= ry; catWY *= ry; fallVY *= ry;
+    }
+    ensureBuildings();
+    vignette = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.28)');
+    regenerateFuture();
+  }
+
+  // ---------- stairs ----------
+  // dirs[i] = direction (-1 left / +1 right) from stair i to stair i+1
+  var dirs = [];
+  var xs = [0]; // xs[i] = world x of stair i (world y of stair i = -i * SY)
+
+  function pickDir(atX, runLen, lastDir){
+    if(atX + SX > LIM) return -1;
+    if(atX - SX < -LIM) return 1;
+    if(runLen >= 6) return -lastDir;
+    // bias toward center so the path meanders instead of hugging a wall
+    var pRight = 0.5 - (atX / (LIM * 2)) * 0.55;
+    return Math.random() < pRight ? 1 : -1;
+  }
+
+  function tailRun(){
+    var n = dirs.length;
+    if(n === 0) return { len: 0, dir: 0 };
+    var d = dirs[n - 1], len = 1;
+    for(var i = n - 2; i >= 0 && dirs[i] === d; i--) len++;
+    return { len: len, dir: d };
+  }
+
+  function genUntil(count){
+    var run = tailRun();
+    var runLen = run.len, lastDir = run.dir;
+    while(dirs.length < count){
+      var i = dirs.length;
+      var d = pickDir(xs[i], runLen, lastDir);
+      if(d === lastDir) runLen++; else { runLen = 1; lastDir = d; }
+      dirs.push(d);
+      xs.push(xs[i] + d * SX);
+    }
+  }
+
+  function recomputeXs(){
+    xs.length = 1;
+    xs[0] = 0;
+    for(var i = 0; i < dirs.length; i++) xs.push(xs[i] + dirs[i] * SX);
+  }
+
+  // After a resize the field bounds change; regenerate stairs beyond the
+  // visible band (everything currently on screen is preserved) so the
+  // path stays inside the new bounds.
+  function regenerateFuture(){
+    if(dirs.length === 0){ recomputeXs(); return; }
+    var keep = Math.min(dirs.length, cur + Math.ceil(H / SY) + 4);
+    dirs.length = keep;
+    recomputeXs();
+    genUntil(cur + 60);
+  }
+
+  // ---------- game state ----------
+  var state = 'ready';           // ready | playing | falling | over
+  var startVisible = true;
+  var inputLockUntil = 0;        // grace period after overlays close, so a
+                                 // rapid second tap can't take a blind step
+  var cur = 0;
+  var score = 0;
+  var best = loadBest();
+  var energy = 1;
+  var face = 1;                  // 1 right, -1 left
+  var lastShownScore = -1;
+
+  var camX = 0, camY = 0;
+  var lastEnergyStr = '', lastLow = false;
+  var socialMax = 0;             // 리더보드 최고 기록 — 그 계단까지 미리 생성해 깃발을 꽂는다
+  var catRX = 0, catRY = 0;      // rendered (smoothed) cat world position
+  var hopT = 9;                  // seconds since last step (drives hop arc)
+  var fallVX = 0, fallVY = 0, fallRot = 0, fallRotV = 0, fallT = 0;
+  var catWX = 0, catWY = 0;      // cat world position while falling
+  var shakeT = 0;
+  var flashA = 0;
+  var particles = [];
+  var timeAlive = 0;
+
+  var ENERGY_GAIN = 0.13;
+  function drainRate(){ return 0.16 + Math.min(0.36, score * 0.0016); }
+
+  var MILESTONES = [
+    { s: 25,   t: '지붕 위' },
+    { s: 50,   t: '전깃줄 위' },
+    { s: 100,  t: '구름 위' },
+    { s: 200,  t: '비행기 고도' },
+    { s: 300,  t: '성층권' },
+    { s: 500,  t: '우주 진입' },
+    { s: 700,  t: '달 궤도' },
+    { s: 1000, t: '드디어, 별까지' }
+  ];
+
+  function showBestLabels(){
+    elStartBest.textContent = best > 0 ? '최고 기록  ' + best + ' 계단' : '';
+  }
+  showBestLabels();
+
+  function showToast(text){
+    elToast.textContent = text;
+    elToast.classList.remove('show');
+    // force reflow to restart the animation
+    void elToast.offsetWidth;
+    elToast.classList.add('show');
+  }
+
+  function setScoreDisplay(){
+    if(score !== lastShownScore){
+      elScore.textContent = String(score);
+      lastShownScore = score;
+    }
+  }
+
+  function resetGame(){
+    dirs.length = 0;
+    xs.length = 1; xs[0] = 0;
+    cur = 0; score = 0; energy = 1;
+    face = 1;
+    camX = 0; camY = 0;
+    catRX = 0; catRY = 0;
+    hopT = 9; fallT = 0; shakeT = 0; flashA = 0;
+    particles.length = 0;
+    timeAlive = 0;
+    genUntil(Math.max(60, socialMax + 12));
+    state = 'ready';
+    inputLockUntil = performance.now() + 280;
+    setScoreDisplay();
+    elOver.classList.add('hidden');
+  }
+
+  function spawnDust(wx, wy){
+    if(reduceMotion) return;
+    for(var i = 0; i < 6; i++){
+      particles.push({
+        x: wx + (Math.random() - 0.5) * SX * 0.6,
+        y: wy + Math.random() * 4,
+        vx: (Math.random() - 0.5) * 60,
+        vy: -20 - Math.random() * 50,
+        life: 0.35 + Math.random() * 0.25,
+        t: 0,
+        r: 1.5 + Math.random() * 2
+      });
+    }
+  }
+
+  function doStep(d){
+    var fromX = xs[cur], fromY = -cur * SY;
+    cur++;
+    score++;
+    face = d;
+    energy = Math.min(1, energy + ENERGY_GAIN);
+    hopT = 0;
+    genUntil(cur + 60);
+    spawnDust(fromX, fromY);
+    sndStep(score);
+    setScoreDisplay();
+    for(var i = 0; i < MILESTONES.length; i++){
+      if(score === MILESTONES[i].s){
+        showToast(MILESTONES[i].t);
+        sndMilestone();
+        if(!reduceMotion) flashA = 0.25;
+      }
+    }
+    if(score > 1000 && score % 500 === 0){
+      showToast('심우주 ' + score);
+      sndMilestone();
+      if(!reduceMotion) flashA = 0.25;
+    }
+  }
+
+  function startFall(kind, d){
+    state = 'falling';
+    fallT = 0;
+    catWX = catRX; catWY = catRY;
+    if(kind === 'miss'){
+      face = d;
+      fallVX = d * SX * 5;
+      fallVY = -SY * 6;
+      fallRotV = d * 7;
+    }else{ // exhausted
+      fallVX = face * SX * 1.2;
+      fallVY = -SY * 2;
+      fallRotV = face * 4;
+    }
+    fallRot = 0;
+    shakeT = reduceMotion ? 0 : 0.35;
+    sndFall();
+  }
+
+  function gameOver(){
+    state = 'over';
+    var isRecord = score > best;
+    if(isRecord){ best = score; saveBest(best); }
+    elFinal.textContent = String(score);
+    elOverLabel.textContent = score >= 100 ? '별에 가까워졌다' : '여기까지 올랐다';
+    elOverBest.textContent = '최고 기록  ' + best + ' 계단';
+    elNewRecord.classList.toggle('hidden', !isRecord);
+    showBestLabels();
+    elOver.classList.remove('hidden');
+    sndOver();
+    try{
+      window.dispatchEvent(new CustomEvent('gyedan:gameover', { detail: { score: score } }));
+    }catch(e){}
+  }
+
+  function hideStart(){
+    startVisible = false;
+    inputLockUntil = performance.now() + 280;
+    elStart.classList.add('hidden');
+  }
+
+  function input(d){
+    if(state === 'falling' || state === 'over') return;
+    audio();
+    if(startVisible){ hideStart(); return; }
+    if(performance.now() < inputLockUntil) return;
+    if(d === dirs[cur]){
+      if(state === 'ready') state = 'playing';
+      doStep(d);
+    }else{
+      startFall('miss', d);
+    }
+  }
+
+  // ---------- input wiring ----------
+  window.addEventListener('pointerdown', function(e){
+    if(e.button !== 0) return; // right/middle click is not a step
+    if(state === 'over') return;
+    input(e.clientX < W / 2 ? -1 : 1);
+  });
+  window.addEventListener('keydown', function(e){
+    if(e.repeat) return;
+    if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A'){
+      e.preventDefault(); if(state !== 'over') input(-1);
+    }else if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D'){
+      e.preventDefault(); if(state !== 'over') input(1);
+    }else if(e.key === ' ' || e.key === 'Enter'){
+      if(state === 'over' && e.target !== elMute){ e.preventDefault(); resetGame(); }
+    }
+  });
+  elRetry.addEventListener('click', function(e){
+    e.stopPropagation();
+    elRetry.blur();
+    resetGame();
+  });
+  // touch input grants user activation on release (pointerup/touchend), not on
+  // pointerdown — resume the context there too or mobile audio never unlocks;
+  // the one-time silent buffer satisfies older iOS unlock rules
+  var audioUnlocked = false;
+  function unlockAudio(){
+    var ctx = audio();
+    if(!ctx || audioUnlocked || ctx.state !== 'running') return;
+    audioUnlocked = true;
+    var src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, 22050);
+    src.connect(ctx.destination);
+    src.start(0);
+  }
+  window.addEventListener('pointerup', unlockAudio);
+  window.addEventListener('touchend', unlockAudio);
+  window.addEventListener('click', unlockAudio);
+  window.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  var resizeTimer = null;
+  window.addEventListener('resize', function(){
+    if(resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 100);
+  });
+  // a record run must survive the tab being closed or the app being killed;
+  // storage only — mutating the live `best` here would stop gameOver from
+  // recognizing this run as a new record
+  function persistPending(){
+    if((state === 'playing' || state === 'falling') && score > best){
+      saveBest(score);
+    }
+  }
+  window.addEventListener('pagehide', persistPending);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden') persistPending();
+  });
+  // 리더보드 모듈이 알려주는 최고 기록 계단까지 경로를 미리 생성
+  window.addEventListener('gyedan:ensure', function(e){
+    var m = e.detail && e.detail.max;
+    if(typeof m === 'number' && m > 0){
+      socialMax = Math.min(Math.floor(m), 20000);
+      genUntil(Math.max(60, socialMax + 12));
+    }
+  });
+
+  // ---------- background props ----------
+  var buildingSpan = 0;
+  var buildingsFar = [];
+  var buildingsNear = [];
+
+  // regenerate the silhouette strip when the viewport outgrows it
+  function ensureBuildings(){
+    var need = W / 2 + 250;
+    if(need <= buildingSpan) return;
+    buildingSpan = Math.max(900, need);
+    buildingsFar = makeBuildings(0);
+    buildingsNear = makeBuildings(1);
+  }
+
+  function makeBuildings(layer){
+    var out = [];
+    var x = -buildingSpan;
+    while(x < buildingSpan){
+      var w = 56 + Math.random() * 60;
+      var h = (layer === 0 ? 40 + Math.random() * 70 : 70 + Math.random() * 110);
+      var windows = [];
+      var cols = Math.max(1, Math.floor(w / 22));
+      var rows = Math.max(1, Math.floor(h / 30));
+      for(var c = 0; c < cols; c++){
+        for(var r = 0; r < rows; r++){
+          if(Math.random() < 0.4){
+            windows.push({ x: 6 + c * 22 + Math.random() * 4, y: 10 + r * 30 + Math.random() * 6 });
+          }
+        }
+      }
+      out.push({ x: x, w: w, h: h, roof: Math.random() < 0.6, windows: windows });
+      x += w + 4 + Math.random() * 26;
+    }
+    return out;
+  }
+
+  function drawBuildings(list, par, color, windowA){
+    var groundS = baseY + (0 - camY) * par + SY * 1.6;
+    if(groundS - 200 > H + 60) return;
+    ctx.fillStyle = color;
+    for(var b = 0; b < list.length; b++){
+      var bd = list[b];
+      var bx = W / 2 + (bd.x - camX * par);
+      if(bx + bd.w < -40 || bx > W + 40) continue;
+      var topY = groundS - bd.h;
+      ctx.fillRect(bx, topY, bd.w, Math.max(0, H + 20 - topY));
+      if(bd.roof){
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, topY);
+        ctx.lineTo(bx + bd.w / 2, topY - 14);
+        ctx.lineTo(bx + bd.w + 4, topY);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if(windowA > 0){
+        ctx.fillStyle = 'rgba(255,212,94,' + windowA.toFixed(3) + ')';
+        for(var wv = 0; wv < bd.windows.length; wv++){
+          var wd = bd.windows[wv];
+          ctx.fillRect(bx + wd.x, topY + wd.y, 5, 7);
+        }
+        ctx.fillStyle = color;
+      }
+    }
+  }
+
+  var stars = [];
+  for(var si = 0; si < 90; si++){
+    stars.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.6 + Math.random() * 1.3,
+      p: si < 45 ? 0.12 : 0.24,
+      tw: Math.random() * 6.28
+    });
+  }
+  var clouds = [];
+  for(var ci = 0; ci < 6; ci++){
+    clouds.push({
+      x: Math.random(),
+      y: Math.random() * 1.5,
+      s: 0.7 + Math.random() * 0.9,
+      p: 0.35 + Math.random() * 0.25
+    });
+  }
+
+  // ---------- sky ----------
+  var SKY = [
+    [0,   [59, 47, 99],  [255, 142, 94]],
+    [60,  [42, 36, 82],  [201, 106, 134]],
+    [140, [25, 27, 62],  [92, 74, 125]],
+    [260, [14, 16, 41],  [40, 43, 82]],
+    [420, [5, 6, 15],    [20, 23, 55]]
+  ];
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  function skyColors(alt){
+    var i = 0;
+    while(i < SKY.length - 2 && alt > SKY[i + 1][0]) i++;
+    var a = SKY[i], b = SKY[i + 1];
+    var t = Math.max(0, Math.min(1, (alt - a[0]) / (b[0] - a[0])));
+    function mix(ca, cb){
+      return 'rgb(' + Math.round(lerp(ca[0], cb[0], t)) + ',' +
+                      Math.round(lerp(ca[1], cb[1], t)) + ',' +
+                      Math.round(lerp(ca[2], cb[2], t)) + ')';
+    }
+    return { top: mix(a[1], b[1]), horizon: mix(a[2], b[2]) };
+  }
+
+  // ---------- drawing helpers ----------
+  function rr(x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawCat(x, y, faceDir, rot, t){
+    var s = SX / 44;
+    ctx.save();
+    ctx.translate(x, y);
+    if(rot) ctx.rotate(rot);
+    ctx.scale(faceDir, 1);
+    ctx.scale(s, s);
+
+    // tail
+    var wag = Math.sin(t * 3) * 0.35;
+    ctx.strokeStyle = '#d97f36';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-14, -10);
+    ctx.quadraticCurveTo(-26, -14 + wag * 8, -24, -28 + wag * 10);
+    ctx.stroke();
+
+    // body
+    ctx.fillStyle = '#f2a65a';
+    ctx.beginPath();
+    ctx.ellipse(-2, -10, 15, 11, 0, 0, 6.29);
+    ctx.fill();
+
+    // stripes
+    ctx.strokeStyle = '#d97f36';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-8, -18); ctx.quadraticCurveTo(-6, -12, -8, -6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-2, -20); ctx.quadraticCurveTo(0, -13, -2, -5); ctx.stroke();
+
+    // hind + front feet
+    ctx.fillStyle = '#e8934a';
+    ctx.beginPath(); ctx.ellipse(-8, -1, 4.5, 3, 0, 0, 6.29); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -1, 4.5, 3, 0, 0, 6.29); ctx.fill();
+
+    // head
+    ctx.fillStyle = '#f2a65a';
+    ctx.beginPath(); ctx.arc(10, -22, 10, 0, 6.29); ctx.fill();
+
+    // ears
+    ctx.beginPath();
+    ctx.moveTo(3, -29); ctx.lineTo(5, -38); ctx.lineTo(11, -31); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(13, -31); ctx.lineTo(18, -37); ctx.lineTo(19, -28); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c9647a';
+    ctx.beginPath();
+    ctx.moveTo(5.5, -30.5); ctx.lineTo(6.3, -34.5); ctx.lineTo(9.5, -31); ctx.closePath(); ctx.fill();
+
+    // muzzle
+    ctx.fillStyle = '#fbe3c4';
+    ctx.beginPath(); ctx.ellipse(14, -18.5, 5.5, 4.5, 0, 0, 6.29); ctx.fill();
+
+    // eyes (blink every few seconds)
+    var blink = (t % 3.4) < 0.12 ? 0.15 : 1;
+    ctx.fillStyle = '#1c1d36';
+    ctx.save();
+    ctx.translate(9, -23); ctx.scale(1, blink);
+    ctx.beginPath(); ctx.arc(0, 0, 1.7, 0, 6.29); ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(16, -22); ctx.scale(1, blink);
+    ctx.beginPath(); ctx.arc(0, 0, 1.7, 0, 6.29); ctx.fill();
+    ctx.restore();
+
+    // nose
+    ctx.fillStyle = '#c9647a';
+    ctx.beginPath(); ctx.arc(15, -19.5, 1.3, 0, 6.29); ctx.fill();
+
+    ctx.restore();
+  }
+
+  // 동료 최고 기록 깃발: 그 계단 위에 프로필 사진 + 이름 + 점수
+  function drawGhostFlag(pl, i, slot){
+    var gx = W / 2 + (xs[i] - camX) + (slot % 2 === 0 ? 1 : -1) * Math.ceil(slot / 2) * 30;
+    var gyTop = baseY + (-i * SY - camY) - SY * 0.28;
+    var poleH = SY * 1.9 + (slot % 3) * 7;
+    var topY2 = gyTop - poleH;
+    ctx.strokeStyle = pl.self ? 'rgba(255,212,94,.95)' : 'rgba(245,237,216,.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(gx, gyTop); ctx.lineTo(gx, topY2); ctx.stroke();
+    ctx.fillStyle = pl.self ? '#ffd45e' : '#ff8e5e';
+    ctx.beginPath();
+    ctx.moveTo(gx + 1, topY2);
+    ctx.lineTo(gx + 15, topY2 + 4.5);
+    ctx.lineTo(gx + 1, topY2 + 9);
+    ctx.closePath(); ctx.fill();
+    var r = 12, cy3 = topY2 - r - 2;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(gx, cy3, r, 0, 6.29); ctx.clip();
+    if(pl.img && pl.img.complete && pl.img.naturalWidth > 0){
+      ctx.drawImage(pl.img, gx - r, cy3 - r, r * 2, r * 2);
+    }else{
+      ctx.fillStyle = pl.color || '#565b7d';
+      ctx.fillRect(gx - r, cy3 - r, r * 2, r * 2);
+      ctx.fillStyle = '#fff';
+      ctx.font = '800 12px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText((pl.name || '?').charAt(0), gx, cy3 + 1);
+    }
+    ctx.restore();
+    ctx.strokeStyle = pl.self ? '#ffd45e' : 'rgba(245,237,216,.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(gx, cy3, r, 0, 6.29); ctx.stroke();
+    var label = (pl.self ? '나 ' : '') + String(pl.name || '').slice(0, 8) + ' ' + pl.best;
+    ctx.font = '700 11px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    var tw2 = ctx.measureText(label).width;
+    var lx = gx + r + 5;
+    ctx.fillStyle = 'rgba(16,18,43,.78)';
+    rr(lx - 5, cy3 - 9, tw2 + 11, 18, 8); ctx.fill();
+    ctx.fillStyle = pl.self ? '#ffd45e' : '#f5edd8';
+    ctx.fillText(label, lx, cy3 + 0.5);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+  }
+
+  // ---------- main loop ----------
+  var lastT = 0;
+
+  function frame(now){
+    var dt = Math.min(0.05, (now - lastT) / 1000 || 0.016);
+    lastT = now;
+    timeAlive += dt;
+
+    // --- update ---
+    var targetCamX = xs[cur];
+    var targetCamY = -cur * SY;
+
+    if(state === 'falling'){
+      fallT += dt;
+      fallVY += SY * 38 * dt;
+      catWX += fallVX * dt;
+      catWY += fallVY * dt;
+      fallRot += fallRotV * dt;
+      if(fallT > 1.0) gameOver();
+    }else{
+      camX += (targetCamX - camX) * Math.min(1, dt * 8);
+      camY += (targetCamY - camY) * Math.min(1, dt * 8);
+      catRX += (targetCamX - catRX) * Math.min(1, dt * 18);
+      catRY += (targetCamY - catRY) * Math.min(1, dt * 18);
+    }
+
+    hopT += dt;
+
+    if(state === 'playing'){
+      energy -= drainRate() * dt;
+      if(energy <= 0){
+        energy = 0;
+        startFall('exhaust', face);
+      }
+    }
+
+    // energy bar (write only on change)
+    var energyStr = 'scaleX(' + Math.max(0, energy).toFixed(3) + ')';
+    if(energyStr !== lastEnergyStr){
+      elEnergyFill.style.transform = energyStr;
+      lastEnergyStr = energyStr;
+    }
+    var lowNow = state === 'playing' && energy < 0.3;
+    if(lowNow !== lastLow){
+      elEnergyBar.classList.toggle('low', lowNow);
+      lastLow = lowNow;
+    }
+
+    if(shakeT > 0) shakeT -= dt;
+    if(flashA > 0) flashA -= dt * 0.9;
+
+    for(var pi = particles.length - 1; pi >= 0; pi--){
+      var p = particles[pi];
+      p.t += dt;
+      if(p.t > p.life){ particles.splice(pi, 1); continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 140 * dt;
+    }
+
+    // --- render ---
+    var alt = Math.max(0, -camY / SY);
+    var sky = skyColors(alt);
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, sky.top);
+    grad.addColorStop(1, sky.horizon);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    if(shakeT > 0){
+      ctx.translate((Math.random() - 0.5) * shakeT * 26, (Math.random() - 0.5) * shakeT * 26);
+    }
+
+    var camYpix = -camY; // grows as we climb
+
+    // stars
+    var starA = Math.max(0, Math.min(1, (alt - 40) / 90));
+    if(starA > 0){
+      ctx.fillStyle = '#f5edd8';
+      for(var i2 = 0; i2 < stars.length; i2++){
+        var st = stars[i2];
+        var syp = ((st.y * H + camYpix * st.p) % H + H) % H;
+        var twk = 0.6 + 0.4 * Math.sin(timeAlive * 2 + st.tw);
+        ctx.globalAlpha = starA * twk * 0.9;
+        ctx.beginPath();
+        ctx.arc(st.x * W, syp, st.r, 0, 6.29);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // moon
+    var moonA = Math.max(0, Math.min(1, (alt - 140) / 80));
+    if(moonA > 0){
+      var mx = W * 0.78, my = H * 0.2;
+      ctx.fillStyle = 'rgba(243,233,200,' + (moonA * 0.16).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(mx, my, 52, 0, 6.29); ctx.fill();
+      ctx.fillStyle = 'rgba(243,233,200,' + (moonA * 0.95).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(mx, my, 34, 0, 6.29); ctx.fill();
+      ctx.fillStyle = 'rgba(200,188,160,' + (moonA * 0.5).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(mx - 10, my - 6, 6, 0, 6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx + 8, my + 10, 4, 0, 6.29); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx + 12, my - 12, 3, 0, 6.29); ctx.fill();
+    }
+
+    // clouds
+    var cloudA = Math.max(0, Math.min(1, (alt - 50) / 60)) * Math.max(0, Math.min(1, (330 - alt) / 70));
+    if(cloudA > 0){
+      ctx.fillStyle = 'rgba(205,196,226,' + (cloudA * 0.14).toFixed(3) + ')';
+      for(var i3 = 0; i3 < clouds.length; i3++){
+        var cl = clouds[i3];
+        var cy = ((cl.y * H + camYpix * cl.p) % (H * 1.5) + H * 1.5) % (H * 1.5) - H * 0.25;
+        var cx = cl.x * W;
+        var cs = cl.s;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 70 * cs, 20 * cs, 0, 0, 6.29);
+        ctx.ellipse(cx + 45 * cs, cy + 6 * cs, 45 * cs, 15 * cs, 0, 0, 6.29);
+        ctx.ellipse(cx - 50 * cs, cy + 8 * cs, 40 * cs, 13 * cs, 0, 0, 6.29);
+        ctx.fill();
+      }
+    }
+
+    // village silhouettes (visible near the start, scroll away as we climb)
+    drawBuildings(buildingsFar, 0.6, 'rgba(30,28,62,0.85)', 0.35);
+    drawBuildings(buildingsNear, 0.85, 'rgba(20,19,46,0.95)', 0.6);
+
+    // stairs
+    var topIdx = Math.min(dirs.length - 1, cur + Math.ceil(H / SY) + 3);
+    var botIdx = Math.max(0, cur - Math.ceil(H / SY));
+    for(var i4 = topIdx; i4 >= botIdx; i4--){
+      var sxp = W / 2 + (xs[i4] - camX);
+      var syp = baseY + (-i4 * SY - camY);
+      if(syp < -BH * 2 || syp > H + BH * 3) continue;
+
+      // front face
+      ctx.fillStyle = '#565b7d';
+      rr(sxp - BW / 2, syp, BW, BH, 4);
+      ctx.fill();
+      // top face
+      ctx.fillStyle = i4 % 10 === 0 && i4 > 0 ? '#c9b978' : '#a8adc4';
+      rr(sxp - BW / 2, syp - SY * 0.28, BW, SY * 0.42, 4);
+      ctx.fill();
+      // top edge highlight
+      ctx.fillStyle = i4 % 10 === 0 && i4 > 0 ? 'rgba(255,212,94,0.9)' : 'rgba(230,233,244,0.75)';
+      rr(sxp - BW / 2, syp - SY * 0.28, BW, 3, 2);
+      ctx.fill();
+    }
+
+    // ground platform under stair 0
+    var gy = baseY + (0 - camY) + BH;
+    if(gy < H + 120){
+      ctx.fillStyle = '#3a3d5e';
+      ctx.fillRect(W / 2 + (0 - camX) - BW * 1.6, gy, BW * 3.2, Math.max(0, H + 20 - gy));
+    }
+
+    // coworker record flags (behind the cat, on top of the stairs)
+    var sp = window.__socialPlayers;
+    if(sp && sp.length){
+      var slotAt = {};
+      for(var gi = 0; gi < sp.length; gi++){
+        var pl = sp[gi];
+        var fi = pl.best;
+        if(fi < botIdx || fi > topIdx || fi >= xs.length) continue;
+        var slot = slotAt[fi] || 0;
+        slotAt[fi] = slot + 1;
+        if(slot < 6) drawGhostFlag(pl, fi, slot);
+      }
+    }
+
+    // hint chevron above the next stair (before the run really starts)
+    if(state !== 'falling' && state !== 'over' && score < 3 && dirs.length > cur){
+      var ni = cur + 1;
+      var nx = W / 2 + (xs[ni] - camX);
+      var ny = baseY + (-ni * SY - camY) - SY * 1.1 - (reduceMotion ? 0 : Math.abs(Math.sin(timeAlive * 4)) * 6);
+      ctx.fillStyle = 'rgba(255,212,94,0.95)';
+      ctx.beginPath();
+      ctx.moveTo(nx - 8, ny - 12);
+      ctx.lineTo(nx + 8, ny - 12);
+      ctx.lineTo(nx, ny);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // dust particles
+    for(var i5 = 0; i5 < particles.length; i5++){
+      var pp = particles[i5];
+      var pa = 1 - pp.t / pp.life;
+      ctx.fillStyle = 'rgba(200,196,220,' + (pa * 0.7).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(W / 2 + (pp.x - camX), baseY + (pp.y - camY), pp.r, 0, 6.29);
+      ctx.fill();
+    }
+
+    // cat
+    if(state === 'falling' || state === 'over'){
+      var fx = W / 2 + (catWX - camX);
+      var fy = baseY + (catWY - camY) - SY * 0.28;
+      if(fy < H + 120) drawCat(fx, fy, face, fallRot, timeAlive);
+    }else{
+      var hop = Math.sin(Math.min(1, hopT / 0.13) * Math.PI) * SY * 0.5;
+      var cx2 = W / 2 + (catRX - camX);
+      var cy2 = baseY + (catRY - camY) - SY * 0.28 - hop;
+      drawCat(cx2, cy2, face, 0, timeAlive);
+    }
+
+    ctx.restore();
+
+    // milestone flash
+    if(flashA > 0){
+      ctx.fillStyle = 'rgba(255,240,210,' + Math.max(0, flashA).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // vignette (gradient cached in resize)
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, W, H);
+
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- boot ----------
+  resize();
+  resetGame();
+  startVisible = true;
+  elStart.classList.remove('hidden');
+  requestAnimationFrame(function(t){ lastT = t; requestAnimationFrame(frame); });
+
+  // ---------- test hook ----------
+  window.__gyedan = {
+    state: function(){
+      return { state: state, score: score, cur: cur, energy: energy, best: best, startVisible: startVisible };
+    },
+    debug: function(){
+      return {
+        W: W, H: H, SX: SX, SY: SY, baseY: baseY,
+        camX: camX, camY: camY, catRX: catRX, catRY: catRY,
+        dirsLen: dirs.length, xsLen: xs.length,
+        xsSample: xs.slice(Math.max(0, cur - 2), cur + 5),
+        topIdx: Math.min(dirs.length - 1, cur + Math.ceil(H / SY) + 3),
+        botIdx: Math.max(0, cur - Math.ceil(H / SY)),
+        lastError: window.__gyedanErr || null
+      };
+    },
+    next: function(){ return dirs[cur]; },
+    tap: function(d){ input(d); },
+    reset: function(){ resetGame(); hideStart(); }
+  };
+  window.addEventListener('error', function(e){
+    window.__gyedanErr = String(e.message) + ' @' + e.lineno;
+  });
+})();
+</script>
+<script>
+/* ---------- 사내 리더보드 모듈 ----------
+ * /api/config 를 읽어 Entra ID 로그인(OAuth2 Authorization Code + PKCE를
+ * 외부 라이브러리 없이 직접 구현), Graph 프로필 사진, 순위표 로드/제출,
+ * 계단 깃발 데이터(window.__socialPlayers)를 관리한다.
+ * 서버 없이 파일로 열면 조용히 비활성화되어 싱글 플레이로 동작한다.
+ */
+(function(){
+  'use strict';
+  function $(id){ return document.getElementById(id); }
+  var elLogin = $('msLogin'), elNote = $('loginNote'), elChip = $('profileChip'),
+      elTarget = $('targetChip'), elStartLb = $('startLb'), elStartRows = $('startLbRows'),
+      elOverLb = $('overLb'), elOverRows = $('overLbRows'), elMyRank = $('myRank');
+
+  var cfg = null, me = null;
+  var inIframe = (function(){ try{ return window.self !== window.top; }catch(e){ return true; } })();
+  var players = [];
+  var refreshSeq = 0;            // 늦게 도착한 응답이 최신 순위표를 덮어쓰지 않도록
+  var imgCache = {};
+  var COLORS = ['#e0705a','#5a8fe0','#5ab88a','#b07ad6','#d6a54a','#5abdc4','#d66a9e','#8a94d6'];
+
+  function colorFor(key){
+    var h = 0;
+    for(var i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+    return COLORS[h % COLORS.length];
+  }
+
+  // 서버는 Entra oid 대신 HMAC으로 가린 id를 내려준다
+  var myId = null, myRank = null, myBest = 0;
+  function isMe(p){ return !!(myId && p.id === myId); }
+
+  function api(path, opts){
+    return fetch(path, opts).then(function(r){
+      if(!r.ok){
+        return r.json().catch(function(){ return {}; }).then(function(j){
+          var err = new Error(j.error || ('HTTP ' + r.status));
+          err.status = r.status;
+          throw err;
+        });
+      }
+      return r.json();
+    });
+  }
+
+  function authedApi(path, opts){
+    return getIdToken().then(function(tok){
+      var o = opts || {};
+      o.headers = Object.assign({}, o.headers, { Authorization: 'Bearer ' + tok });
+      return api(path, o);
+    });
+  }
+
+  // ---------- 로그인 ----------
+  function devLogin(promptIfNeeded){
+    var name = null;
+    try{ name = localStorage.getItem('gyedan-devname'); }catch(e){}
+    if(!name && promptIfNeeded){
+      name = window.prompt('테스트용 이름 (개발 모드)', '테스터') || null;
+      if(name){ try{ localStorage.setItem('gyedan-devname', name); }catch(e){} }
+    }
+    if(!name) return false;
+    me = { oid: name, name: name, photo: null, dev: true };
+    afterLogin();
+    return true;
+  }
+
+  // ---------- OAuth2 Authorization Code + PKCE (라이브러리 없이 직접) ----------
+  var SCOPES = 'openid profile offline_access User.Read';
+  var AUTH_KEY = 'gyedan-auth';    // 토큰 보관 (localStorage)
+  var PKCE_KEY = 'gyedan-pkce';    // 진행 중인 로그인 (sessionStorage)
+
+  function redirectUri(){
+    // Azure에 등록한 값과 정확히 같아야 한다 — 하위 경로로 들어와도 루트로 고정
+    return location.origin + '/';
+  }
+  function authBase(){ return 'https://login.microsoftonline.com/' + cfg.tenantId + '/oauth2/v2.0'; }
+
+  function b64url(bytes){
+    var s = '';
+    var arr = new Uint8Array(bytes);
+    for(var i = 0; i < arr.length; i++) s += String.fromCharCode(arr[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function randomString(n){
+    var a = new Uint8Array(n);
+    crypto.getRandomValues(a);
+    return b64url(a.buffer);
+  }
+  function sha256(str){
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  }
+  function parseJwt(jwt){
+    var b = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    while(b.length % 4) b += '=';
+    // Entra의 이름은 한글이므로 UTF-8 디코딩이 필요하다
+    var bin = atob(b);
+    var bytes = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
+  function loadAuth(){
+    try{ return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }catch(e){ return null; }
+  }
+  function saveAuth(a){
+    try{ localStorage.setItem(AUTH_KEY, JSON.stringify(a)); }catch(e){}
+  }
+  function clearAuth(){
+    try{ localStorage.removeItem(AUTH_KEY); }catch(e){}
+  }
+
+  function storeTokens(tok){
+    var claims = parseJwt(tok.id_token);
+    var a = {
+      idToken: tok.id_token,
+      accessToken: tok.access_token || null,
+      refreshToken: tok.refresh_token || null,
+      expiresAt: (claims.exp || 0) * 1000,
+      oid: claims.oid,
+      name: claims.name || claims.preferred_username || '이름없음'
+    };
+    saveAuth(a);
+    return a;
+  }
+
+  function tokenRequest(params){
+    params.client_id = cfg.clientId;
+    return fetch(authBase() + '/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(params)
+    }).then(function(r){
+      return r.json().then(function(j){
+        if(!r.ok) throw new Error(j.error_description || j.error || ('HTTP ' + r.status));
+        return j;
+      });
+    });
+  }
+
+  function beginLogin(){
+    var verifier = randomString(48);
+    var state = randomString(12);
+    var nonce = randomString(12);
+    return sha256(verifier).then(function(digest){
+      try{
+        sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, s: state, n: nonce }));
+      }catch(e){}
+      var url = authBase() + '/authorize?' + new URLSearchParams({
+        client_id: cfg.clientId,
+        response_type: 'code',
+        redirect_uri: redirectUri(),
+        response_mode: 'query',
+        scope: SCOPES,
+        state: state,
+        nonce: nonce,
+        code_challenge: b64url(digest),
+        code_challenge_method: 'S256'
+      });
+      if(inIframe){
+        // 팀즈 탭 등 iframe 안에서는 로그인 페이지가 프레임을 거부한다 → 팝업
+        var w = window.open(url, 'gyedan-login', 'width=520,height=680');
+        if(!w){
+          elNote.hidden = false;
+          elNote.textContent = '로그인 창이 차단되었습니다 — 브라우저에서 팝업을 허용해주세요';
+        }
+        return;
+      }
+      location.assign(url);
+    });
+  }
+
+  function cleanUrl(){
+    try{ history.replaceState(null, '', location.pathname); }catch(e){}
+  }
+
+  function exchangeCode(code, state){
+    var p = null;
+    try{ p = JSON.parse(sessionStorage.getItem(PKCE_KEY) || 'null'); }catch(e){}
+    if(!p) return Promise.reject(new Error('로그인 상태 정보를 찾을 수 없습니다'));
+    if(p.s !== state) return Promise.reject(new Error('state 불일치 — 로그인을 다시 시도해주세요'));
+    try{ sessionStorage.removeItem(PKCE_KEY); }catch(e){}
+    return tokenRequest({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: redirectUri(),
+      code_verifier: p.v,
+      scope: SCOPES
+    }).then(function(tok){
+      if(parseJwt(tok.id_token).nonce !== p.n) throw new Error('nonce 불일치');
+      return storeTokens(tok);
+    });
+  }
+
+  // 리프레시 토큰으로 조용히 갱신 (Entra SPA는 24시간 슬라이딩)
+  var refreshing = null;
+  function refreshTokens(){
+    if(refreshing) return refreshing;
+    var a = loadAuth();
+    if(!a || !a.refreshToken) return Promise.reject(new Error('재로그인이 필요합니다'));
+    refreshing = tokenRequest({
+      grant_type: 'refresh_token',
+      refresh_token: a.refreshToken,
+      scope: SCOPES
+    }).then(function(tok){
+      refreshing = null;
+      return storeTokens(tok);
+    }).catch(function(e){
+      refreshing = null;
+      clearAuth();
+      throw e;
+    });
+    return refreshing;
+  }
+
+  function getIdToken(){
+    if(me && me.dev) return Promise.resolve('dev:' + encodeURIComponent(JSON.stringify({ oid: me.oid, name: me.name })));
+    var a = loadAuth();
+    if(!a) return Promise.reject(new Error('로그인 안 됨'));
+    if(a.expiresAt - 120000 > Date.now()) return Promise.resolve(a.idToken);
+    // 만료가 임박했거나 지났으면 갱신, 갱신도 실패하면 재로그인 안내
+    return refreshTokens().then(function(n){ return n.idToken; })
+      .catch(function(e){
+        me = null;
+        renderChip();
+        elLogin.hidden = false;
+        elNote.hidden = false;
+        elNote.textContent = '로그인이 만료되었습니다 — 다시 로그인해주세요';
+        throw e;
+      });
+  }
+
+  function graphToken(){
+    var a = loadAuth();
+    if(!a) return Promise.reject(new Error('로그인 안 됨'));
+    if(a.accessToken && a.expiresAt - 120000 > Date.now()) return Promise.resolve(a.accessToken);
+    return refreshTokens().then(function(n){ return n.accessToken; });
+  }
+
+  function fetchPhoto(){
+    return graphToken()
+      .then(function(at){
+        return fetch('https://graph.microsoft.com/v1.0/me/photos/48x48/$value',
+          { headers: { Authorization: 'Bearer ' + at } });
+      })
+      .then(function(r){ if(!r.ok) throw new Error('사진 없음'); return r.blob(); })
+      .then(function(blob){
+        return new Promise(function(resolve){
+          var fr = new FileReader();
+          fr.onload = function(){ resolve(String(fr.result)); };
+          fr.onerror = function(){ resolve(null); };
+          fr.readAsDataURL(blob);
+        });
+      })
+      .catch(function(){ return null; });
+  }
+
+  function renderChip(){
+    if(!me){ elChip.classList.remove('show'); return; }
+    elChip.innerHTML = '';
+    if(me.photo){
+      var im = document.createElement('img');
+      im.src = me.photo; im.alt = '';
+      elChip.appendChild(im);
+    }else{
+      var d = document.createElement('span');
+      d.className = 'ini';
+      d.style.background = colorFor(myId || me.name);
+      d.textContent = me.name.charAt(0);
+      elChip.appendChild(d);
+    }
+    elChip.appendChild(document.createTextNode(me.name));
+    elChip.classList.add('show');
+  }
+
+  function afterLogin(){
+    elLogin.hidden = true;
+    elNote.hidden = true;
+    renderChip();
+    if(!me.photo && !me.dev){
+      fetchPhoto().then(function(p){ me.photo = p; renderChip(); });
+    }
+    refresh();
+  }
+
+  function showLoginButton(msg){
+    elLogin.hidden = false;
+    elNote.hidden = false;
+    if(msg) elNote.textContent = msg;
+  }
+
+  function adoptAuth(a){
+    me = { oid: a.oid, name: a.name, photo: null };
+    afterLogin();
+  }
+
+  function initAuth(){
+    if(!cfg.clientId || !cfg.tenantId){
+      if(cfg.devFakeAuth){
+        if(!devLogin(false)) showLoginButton('개발 모드 — 아무 이름으로 로그인해서 테스트하세요');
+        return;
+      }
+      elNote.hidden = false;
+      elNote.textContent = '서버에 tenantId/clientId가 설정되지 않아 순위표 로그인이 꺼져 있습니다';
+      return;
+    }
+    if(!window.crypto || !crypto.subtle){
+      elNote.hidden = false;
+      elNote.textContent = 'HTTPS(또는 localhost)에서만 로그인할 수 있습니다';
+      return;
+    }
+
+    var q = new URLSearchParams(location.search);
+    var code = q.get('code'), state = q.get('state'), oauthErr = q.get('error');
+
+    // 팝업으로 로그인한 경우: 코드를 원래 창으로 넘기고 닫는다
+    if((code || oauthErr) && window.opener && window.opener !== window){
+      try{
+        window.opener.postMessage({
+          type: 'gyedan-auth', code: code, state: state,
+          error: oauthErr, errorDescription: q.get('error_description')
+        }, location.origin);
+      }catch(e){}
+      window.close();
+      return;
+    }
+
+    if(oauthErr){
+      cleanUrl();
+      showLoginButton('로그인 실패: ' + (q.get('error_description') || oauthErr));
+      return;
+    }
+
+    if(code){
+      cleanUrl();
+      exchangeCode(code, state).then(adoptAuth).catch(function(e){
+        showLoginButton('로그인 실패: ' + e.message);
+      });
+      return;
+    }
+
+    var a = loadAuth();
+    if(a){
+      if(a.expiresAt - 120000 > Date.now()){ adoptAuth(a); return; }
+      refreshTokens().then(adoptAuth).catch(function(){
+        showLoginButton('로그인이 만료되었습니다 — 다시 로그인해주세요');
+      });
+      return;
+    }
+    showLoginButton();
+  }
+
+  // 팝업 로그인 결과 수신 (팀즈 탭 등 iframe 환경)
+  window.addEventListener('message', function(e){
+    if(e.origin !== location.origin) return;
+    var d = e.data;
+    if(!d || d.type !== 'gyedan-auth') return;
+    if(d.error){ showLoginButton('로그인 실패: ' + (d.errorDescription || d.error)); return; }
+    if(!d.code) return;
+    exchangeCode(d.code, d.state).then(adoptAuth).catch(function(err){
+      showLoginButton('로그인 실패: ' + err.message);
+    });
+  });
+
+  ['pointerdown','click'].forEach(function(t){
+    elLogin.addEventListener(t, function(e){ e.stopPropagation(); if(t === 'click') doLogin(); });
+    elChip.addEventListener(t, function(e){ e.stopPropagation(); if(t === 'click') doLogout(); });
+    elStartLb.addEventListener(t, function(e){ e.stopPropagation(); });
+  });
+
+  function doLogin(){
+    if(cfg && cfg.devFakeAuth && !cfg.clientId){ devLogin(true); return; }
+    if(!cfg || !cfg.clientId) return;
+    beginLogin().catch(function(e){
+      showLoginButton('로그인을 시작할 수 없습니다: ' + e.message);
+    });
+  }
+
+  function doLogout(){
+    if(!window.confirm(me ? me.name + ' 계정에서 로그아웃할까요?' : '로그아웃할까요?')) return;
+    var wasDev = me && me.dev;
+    if(wasDev){ try{ localStorage.removeItem('gyedan-devname'); }catch(e){} }
+    clearAuth();
+    me = null;
+    myId = null; myRank = null; myBest = 0;
+    renderChip();
+    showLoginButton();
+    players = [];
+    applyPlayers();
+    // 계정 자체에서 로그아웃하려면 Microsoft 로그아웃 페이지로 (iframe에서는 생략)
+    if(!wasDev && !inIframe && cfg && cfg.tenantId){
+      location.assign(authBase() + '/logout?post_logout_redirect_uri='
+        + encodeURIComponent(redirectUri()));
+    }
+  }
+
+  // ---------- 순위표 ----------
+  function ensureImg(p){
+    if(!p.photo) return null;
+    var im = imgCache[p.id];
+    if(!im){
+      im = new Image();
+      im.src = p.photo;
+      imgCache[p.id] = im;
+    }
+    return im;
+  }
+
+  // 순위표 조회에도 인증이 필요하다(사내 명부 보호) — 로그인 전에는 안내만 표시
+  function refresh(){
+    if(!me){
+      players = [];
+      applyPlayers();
+      return Promise.resolve();
+    }
+    var seq = ++refreshSeq;
+    return authedApi('/api/leaderboard').then(function(res){
+      if(seq !== refreshSeq) return;   // 늦게 온 응답은 버린다
+      players = res.players || [];
+      if(res.me){
+        myId = res.me.id;
+        myRank = res.me.rank;
+        myBest = res.me.best;
+      }
+      applyPlayers();
+    }).catch(function(e){
+      if(e && e.status === 401) console.warn('순위표 인증 실패:', e.message);
+    });
+  }
+
+  function applyPlayers(){
+    var max = 0;
+    window.__socialPlayers = players.map(function(p){
+      if(p.best > max) max = p.best;
+      return {
+        best: p.best,
+        name: p.name,
+        img: ensureImg(p),
+        color: colorFor(p.id),
+        self: !!p.self || isMe(p)
+      };
+    });
+    try{ window.dispatchEvent(new CustomEvent('gyedan:ensure', { detail: { max: max } })); }catch(e){}
+    renderRows(elStartRows, elStartLb, 5);
+    renderRows(elOverRows, elOverLb, 10);
+    renderMyRank();
+  }
+
+  function avatarEl(p, size){
+    if(p.photo){
+      var im = document.createElement('img');
+      im.src = p.photo; im.alt = '';
+      return im;
+    }
+    var d = document.createElement('span');
+    d.className = 'ini';
+    d.style.background = colorFor(p.id || p.name || '?');
+    d.textContent = (p.name || '?').charAt(0);
+    return d;
+  }
+
+  function renderRows(container, box, n){
+    box.hidden = false;
+    container.innerHTML = '';
+    if(!players.length){
+      var em = document.createElement('p');
+      em.className = 'lbEmpty';
+      em.textContent = me ? '아직 기록이 없습니다 — 첫 주자가 되어보세요!'
+                          : '로그인하면 회사 순위가 표시됩니다';
+      container.appendChild(em);
+      return;
+    }
+    players.slice(0, n).forEach(function(p, i){
+      var row = document.createElement('div');
+      row.className = 'lbRow' + (isMe(p) ? ' me' : '');
+      var rank = document.createElement('span');
+      rank.className = 'rank';
+      rank.textContent = String(i + 1);
+      row.appendChild(rank);
+      row.appendChild(avatarEl(p));
+      var nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = p.name;
+      row.appendChild(nm);
+      var sc = document.createElement('span');
+      sc.className = 'sc';
+      sc.textContent = String(p.best);
+      row.appendChild(sc);
+      container.appendChild(row);
+    });
+  }
+
+  // 서버가 준 전체 기준 순위를 쓴다 — TOP 100 밖의 플레이어도 자기 순위를 본다
+  function renderMyRank(){
+    if(!me || !myRank || !myBest){ elMyRank.hidden = true; return; }
+    elMyRank.hidden = false;
+    elMyRank.textContent = '내 순위 ' + myRank + '위 · 최고 ' + myBest + '계단';
+  }
+
+  // ---------- 추격 칩: 다음으로 잡을 동료 ----------
+  setInterval(function(){
+    var g = window.__gyedan;
+    if(!g || !players.length){ elTarget.classList.remove('show'); return; }
+    var st = g.state();
+    if(st.state !== 'playing'){ elTarget.classList.remove('show'); return; }
+    var next = null;
+    for(var i = players.length - 1; i >= 0; i--){
+      if(players[i].best > st.score && !isMe(players[i])){ next = players[i]; break; }
+    }
+    elTarget.innerHTML = '';
+    if(!next){
+      var crown = document.createElement('span');
+      crown.className = 'up';
+      crown.textContent = '👑 지금 회사 1위 페이스!';
+      elTarget.appendChild(crown);
+    }else{
+      elTarget.appendChild(avatarEl(next));
+      var t1 = document.createElement('span');
+      t1.textContent = String(next.name).slice(0, 8) + ' ' + next.best;
+      elTarget.appendChild(t1);
+      var t2 = document.createElement('span');
+      t2.className = 'up';
+      t2.textContent = '▲ ' + (next.best - st.score) + '계단';
+      elTarget.appendChild(t2);
+    }
+    elTarget.classList.add('show');
+  }, 300);
+
+  // ---------- 점수 제출 ----------
+  window.addEventListener('gyedan:gameover', function(e){
+    var score = e.detail && e.detail.score;
+    if(!me || !score || score < 1){ refresh(); return; }
+    // 제출 후 한 번만 조회한다 — 제출 전후로 두 번 부르면 늦게 온 옛 응답이 새 기록을 덮는다
+    authedApi('/api/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ score: score, photo: me.photo || undefined })
+    }).then(function(res){
+      myId = res.id; myRank = res.rank; myBest = res.best;
+      renderMyRank();
+      return refresh();
+    }).catch(function(err){
+      console.warn('점수 전송 실패:', err.message);
+      refresh();
+    });
+  });
+
+  // ---------- 부트 ----------
+  var qs = new URLSearchParams(location.search);
+  if(qs.get('devuser')){
+    try{ localStorage.setItem('gyedan-devname', qs.get('devuser')); }catch(e){}
+  }
+
+  api('/api/config').then(function(c){
+    cfg = c;
+    initAuth();
+    refresh();
+    setInterval(function(){
+      if(document.visibilityState === 'visible') refresh();
+    }, 30000);
+  }).catch(function(){ /* 서버 없이 열림(file://) — 소셜 기능 없이 싱글 플레이 */ });
+})();
+</script>
+</body>
+</html>

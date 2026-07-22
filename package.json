@@ -1,0 +1,12 @@
+{
+  "name": "stairs-to-the-star",
+  "version": "1.0.0",
+  "private": true,
+  "description": "별까지 계단 — 팀즈 계정으로 로그인해 동료와 경쟁하는 무한계단 게임",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

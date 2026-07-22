@@ -1,0 +1,14 @@
+# 직원 이름·프로필 사진이 들어가는 데이터 — 저장소에 올리지 않는다
+scores.json
+scores.json.tmp
+
+# 순위표 익명 ID용 비밀키
+.secret
+
+# 테넌트/클라이언트 ID가 담긴 실제 설정 (config.example.json을 복사해서 사용)
+config.json
+
+node_modules/
+.vercel
+*.log
+.DS_Store

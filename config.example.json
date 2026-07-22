@@ -1,0 +1,9 @@
+{
+  "_설명": "이 파일을 config.json으로 복사한 뒤 값을 채우세요. Vercel에서는 환경변수(TENANT_ID, CLIENT_ID)를 대신 사용합니다.",
+  "tenantId": "",
+  "clientId": "",
+  "port": 8443,
+  "bind": "0.0.0.0",
+  "devFakeAuth": false,
+  "trustProxy": false
+}
