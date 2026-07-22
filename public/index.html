@@ -1404,6 +1404,8 @@
   var SCOPES = 'openid profile offline_access User.Read';
   var AUTH_KEY = 'gyedan-auth';    // 토큰 보관 (localStorage)
   var PKCE_KEY = 'gyedan-pkce';    // 진행 중인 로그인 (sessionStorage)
+  var HINT_KEY = 'gyedan-hint';    // 마지막 계정 (계정 선택 화면 건너뛰기용)
+  var SILENT_KEY = 'gyedan-silent';// 무음 SSO 시도 여부 (리다이렉트 루프 방지)
 
   function redirectUri(){
     // Azure에 등록한 값과 정확히 같아야 한다 — 하위 경로로 들어와도 루트로 고정
@@ -1456,6 +1458,9 @@
       name: claims.name || claims.preferred_username || '이름없음'
     };
     saveAuth(a);
+    if(claims.preferred_username){
+      try{ localStorage.setItem(HINT_KEY, claims.preferred_username); }catch(e){}
+    }
     return a;
   }
 
@@ -1473,7 +1478,11 @@
     });
   }
 
-  function beginLogin(){
+  // silent=true면 prompt=none으로 보내, 기기에 이미 Microsoft 세션이 있으면
+  // 아무 화면 없이 곧바로 돌아온다(비밀번호 입력 없음). 세션이 없으면
+  // login_required 오류로 돌아오므로 그때 로그인 버튼을 보여준다.
+  function beginLogin(opts){
+    var silent = !!(opts && opts.silent);
     var verifier = randomString(48);
     var state = randomString(12);
     var nonce = randomString(12);
@@ -1481,7 +1490,7 @@
       try{
         sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, s: state, n: nonce }));
       }catch(e){}
-      var url = authBase() + '/authorize?' + new URLSearchParams({
+      var params = {
         client_id: cfg.clientId,
         response_type: 'code',
         redirect_uri: redirectUri(),
@@ -1491,7 +1500,13 @@
         nonce: nonce,
         code_challenge: b64url(digest),
         code_challenge_method: 'S256'
-      });
+      };
+      if(silent) params.prompt = 'none';
+      // 이전에 로그인한 계정이 있으면 계정 선택 화면을 건너뛴다
+      var hint = null;
+      try{ hint = localStorage.getItem(HINT_KEY); }catch(e){}
+      if(hint) params.login_hint = hint;
+      var url = authBase() + '/authorize?' + new URLSearchParams(params);
       if(inIframe){
         // 팀즈 탭 등 iframe 안에서는 로그인 페이지가 프레임을 거부한다 → 팝업
         var w = window.open(url, 'gyedan-login', 'width=520,height=680');
@@ -1663,7 +1678,11 @@
 
     if(oauthErr){
       cleanUrl();
-      showLoginButton('로그인 실패: ' + (q.get('error_description') || oauthErr));
+      try{ sessionStorage.removeItem(PKCE_KEY); }catch(e){}
+      // 무음 SSO가 "세션 없음"으로 돌아온 경우는 오류가 아니라 정상 흐름이다
+      var noSession = ['login_required', 'interaction_required', 'consent_required']
+        .indexOf(oauthErr) >= 0;
+      showLoginButton(noSession ? null : '로그인 실패: ' + (q.get('error_description') || oauthErr));
       return;
     }
 
@@ -1679,11 +1698,24 @@
     if(a){
       if(a.expiresAt - 120000 > Date.now()){ adoptAuth(a); return; }
       refreshTokens().then(adoptAuth).catch(function(){
-        showLoginButton('로그인이 만료되었습니다 — 다시 로그인해주세요');
+        trySilentOrShowButton('로그인이 만료되었습니다 — 다시 로그인해주세요');
       });
       return;
     }
-    showLoginButton();
+    trySilentOrShowButton();
+  }
+
+  // 기기에 이미 Microsoft 세션이 있으면(팀즈·Office 로그인 상태, Entra 가입 PC 등)
+  // 화면 없이 바로 로그인된다. 세션이 없으면 곧장 돌아와 버튼을 보여준다.
+  // iframe(팀즈 탭)에서는 로그인 페이지가 프레임을 거부하므로 시도하지 않는다.
+  function trySilentOrShowButton(msg){
+    var tried = true;
+    try{ tried = !!sessionStorage.getItem(SILENT_KEY); }catch(e){}
+    if(inIframe || tried || !cfg.clientId){ showLoginButton(msg); return; }
+    try{ sessionStorage.setItem(SILENT_KEY, '1'); }catch(e){}
+    elNote.hidden = false;
+    elNote.textContent = '로그인 확인 중…';
+    beginLogin({ silent: true }).catch(function(){ showLoginButton(msg); });
   }
 
   // 팝업 로그인 결과 수신 (팀즈 탭 등 iframe 환경)
@@ -1717,6 +1749,11 @@
     var wasDev = me && me.dev;
     if(wasDev){ try{ localStorage.removeItem('gyedan-devname'); }catch(e){} }
     clearAuth();
+    // 계정을 바꾸려는 것일 수 있으므로 힌트를 지우고, 무음 재로그인도 막는다
+    try{
+      localStorage.removeItem(HINT_KEY);
+      sessionStorage.setItem(SILENT_KEY, '1');
+    }catch(e){}
     me = null;
     myId = null; myRank = null; myBest = 0;
     renderChip();
