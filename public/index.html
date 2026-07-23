@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>별까지 계단</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#10122b">
 <style>
   :root{
     --night:#10122b;
@@ -1406,6 +1410,7 @@
   var PKCE_KEY = 'gyedan-pkce';    // 진행 중인 로그인 (sessionStorage)
   var HINT_KEY = 'gyedan-hint';    // 마지막 계정 (계정 선택 화면 건너뛰기용)
   var SILENT_KEY = 'gyedan-silent';// 무음 SSO 시도 여부 (리다이렉트 루프 방지)
+  var SIGNED_OUT_KEY = 'gyedan-out';// 사용자가 직접 로그아웃함 (자동 재로그인 방지)
 
   function redirectUri(){
     // Azure에 등록한 값과 정확히 같아야 한다 — 하위 경로로 들어와도 루트로 고정
@@ -1711,9 +1716,13 @@
   // 화면 없이 바로 로그인된다. 세션이 없으면 곧장 돌아와 버튼을 보여준다.
   // iframe(팀즈 탭)에서는 로그인 페이지가 프레임을 거부하므로 시도하지 않는다.
   function trySilentOrShowButton(msg){
-    var tried = true;
-    try{ tried = !!sessionStorage.getItem(SILENT_KEY); }catch(e){}
-    if(inIframe || tried || !cfg.clientId){ showLoginButton(msg); return; }
+    var tried = true, signedOut = false;
+    try{
+      tried = !!sessionStorage.getItem(SILENT_KEY);
+      signedOut = !!localStorage.getItem(SIGNED_OUT_KEY);
+    }catch(e){}
+    // 직접 로그아웃한 경우에는 자동으로 다시 들어가지 않는다 (버튼을 누르면 즉시 로그인)
+    if(inIframe || tried || signedOut || !cfg.clientId){ showLoginButton(msg); return; }
     try{ sessionStorage.setItem(SILENT_KEY, '1'); }catch(e){}
     elNote.hidden = false;
     elNote.textContent = '로그인 확인 중…';
@@ -1741,6 +1750,9 @@
   function doLogin(){
     if(cfg && cfg.devFakeAuth && !cfg.clientId){ devLogin(true); return; }
     if(!cfg || !cfg.clientId) return;
+    try{ localStorage.removeItem(SIGNED_OUT_KEY); }catch(e){}
+    elNote.hidden = false;
+    elNote.textContent = '로그인 중…';
     beginLogin().catch(function(e){
       showLoginButton('로그인을 시작할 수 없습니다: ' + e.message);
     });
@@ -1751,22 +1763,17 @@
     var wasDev = me && me.dev;
     if(wasDev){ try{ localStorage.removeItem('gyedan-devname'); }catch(e){} }
     clearAuth();
-    // 계정을 바꾸려는 것일 수 있으므로 힌트를 지우고, 무음 재로그인도 막는다
-    try{
-      localStorage.removeItem(HINT_KEY);
-      sessionStorage.setItem(SILENT_KEY, '1');
-    }catch(e){}
+    // 이 게임에서만 로그아웃한다. Microsoft 로그아웃 페이지로 보내면 브라우저의
+    // 회사 계정 세션까지 끊겨서(Outlook·Teams 웹 포함) 다시 들어올 때 비밀번호를
+    // 새로 입력해야 하므로 호출하지 않는다. 계정 힌트도 남겨 다시 로그인할 때
+    // 계정 선택 화면 없이 바로 들어가게 한다.
+    try{ localStorage.setItem(SIGNED_OUT_KEY, '1'); }catch(e){}
     me = null;
     myId = null; myRank = null; myBest = 0;
     renderChip();
-    showLoginButton();
+    showLoginButton('다시 시작하려면 눌러주세요');
     players = [];
     applyPlayers();
-    // 계정 자체에서 로그아웃하려면 Microsoft 로그아웃 페이지로 (iframe에서는 생략)
-    if(!wasDev && !inIframe && cfg && cfg.tenantId){
-      location.assign(authBase() + '/logout?post_logout_redirect_uri='
-        + encodeURIComponent(redirectUri()));
-    }
   }
 
   // ---------- 순위표 ----------

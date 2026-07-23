@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="별까지 계단">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#231f4a"/>
+      <stop offset="1" stop-color="#8a4a5e"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7.5" fill="url(#sky)"/>
+  <path d="M2.5 30V23.5H11V17.5H19.5V13H28V30Z" fill="#4a4f70"/>
+  <path d="M2.5 23.5H11V25.7H2.5ZM11 17.5H19.5V19.7H11ZM19.5 13H28V15.2H19.5Z" fill="#eef1fb"/>
+  <path d="M24.00 0.80 L25.53 4.90 L29.90 5.08 L26.47 7.80 L27.64 12.02 L24.00 9.60 L20.36 12.02 L21.53 7.80 L18.10 5.08 L22.47 4.90 Z" fill="#ffd45e"/>
+</svg>
