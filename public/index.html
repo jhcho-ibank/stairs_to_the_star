@@ -1098,10 +1098,12 @@
       fallRot += fallRotV * dt;
       if(fallT > 1.0) gameOver();
     }else{
-      camX += (targetCamX - camX) * Math.min(1, dt * 8);
-      camY += (targetCamY - camY) * Math.min(1, dt * 8);
-      catRX += (targetCamX - catRX) * Math.min(1, dt * 18);
-      catRY += (targetCamY - catRY) * Math.min(1, dt * 18);
+      // 탭하면 바로 붙는 느낌이 나도록 보간을 빠르게. 고양이는 거의 즉시,
+      // 카메라는 살짝 뒤따라와 급하지 않게 (느린 기기에선 dt가 커져 자동으로 스냅)
+      camX += (targetCamX - camX) * Math.min(1, dt * 16);
+      camY += (targetCamY - camY) * Math.min(1, dt * 16);
+      catRX += (targetCamX - catRX) * Math.min(1, dt * 34);
+      catRY += (targetCamY - catRY) * Math.min(1, dt * 34);
     }
 
     hopT += dt;
